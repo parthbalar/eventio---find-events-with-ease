@@ -1,0 +1,263 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
+import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom";
+
+const UserAccount = () => {
+  const [user, setUser] = useState(null);
+  const [tickets, setTickets] = useState([]);
+  const [userEvents, setUserEvents] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [showContacts, setShowContacts] = useState(false);
+  const [editEvent, setEditEvent] = useState(null);
+  const navigate = useNavigate();
+
+  async function logout() {
+    await axios.post("/logout");
+    setUser(null);
+    navigate("/");
+    window.location.reload();
+  }
+
+  useEffect(() => {
+    axios
+      .get("http://localhost:4000/profile", { withCredentials: true })
+      .then(({ data }) => {
+        setUser(data);
+        localStorage.setItem("userEmail", data.email); // Save to localStorage
+      })
+      .catch(() => navigate("/login"));
+  }, []);
+
+  useEffect(() => {
+    if (user?.email) {
+      axios
+        .get("http://localhost:4000/api/events")
+        .then(({ data }) => {
+          const filteredEvents = data.filter(
+            (event) => event.organizerEmail === user.email
+          );
+          setUserEvents(filteredEvents);
+        })
+        .catch((err) => console.error("Error fetching events:", err));
+
+      axios
+        .get("http://localhost:4000/api/contact", { withCredentials: true })
+        .then(({ data }) => setContacts(data))
+        .catch((err) => console.error("Error fetching contacts:", err));
+    }
+  }, [user]);
+
+  const handleDeleteEvent = async (eventId) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "This event will be permanently deleted!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const response = await axios.delete(
+            `http://localhost:4000/api/events/${eventId}`,
+            { withCredentials: true }
+          );
+          if (response.status === 200) {
+            setUserEvents(userEvents.filter((ev) => ev._id !== eventId));
+            Swal.fire("Deleted!", "Event has been deleted.", "success");
+          } else {
+            Swal.fire("Error", "Failed to delete event", "error");
+          }
+        } catch (error) {
+          console.error("Delete request failed:", error);
+          Swal.fire("Error", "Something went wrong!", "error");
+        }
+      }
+    });
+  };
+
+  const handleUpdateEvent = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(
+        `http://localhost:4000/api/events/${editEvent._id}`,
+        editEvent,
+        { withCredentials: true }
+      );
+      setUserEvents(
+        userEvents.map((ev) => (ev._id === editEvent._id ? editEvent : ev))
+      );
+      setEditEvent(null);
+      Swal.fire("Updated!", "Event details have been updated.", "success");
+    } catch (error) {
+      console.error("Update failed:", error);
+      Swal.fire("Error", "Failed to update event", "error");
+    }
+  };
+
+  return (
+
+    <>
+
+{/* <div className=" min-h-screen bg-gray-100"> */}
+      {/* <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 w-96">
+        <div className="relative">
+          <img
+            className="rounded-full w-20 h-20"
+            src="https://placehold.co/80x80"
+            alt="Profile picture of the host"
+          />
+          <div className="absolute bottom-0 right-0 bg-pink-500 text-white rounded-full p-1">
+            <i className="fas fa-check"></i>
+          </div>
+        </div>
+        <div className="flex-grow text-center sm:text-left">
+          <h2 className="text-2xl font-bold">Jeetu</h2>
+          <p className="text-gray-500">Host</p>
+        </div>
+        <div className="text-center sm:text-right">
+          <div className="mb-2">
+            <strong className="block text-lg">547</strong>
+            <p className="text-gray-500">Reviews</p>
+          </div>
+          <div className="mb-2">
+            <strong className="block text-lg">
+              4.96 <i className="fas fa-star text-yellow-400"></i>
+            </strong>
+            <p className="text-gray-500">Rating</p>
+          </div>
+          <div>
+            <strong className="block text-lg">2</strong>
+            <p className="text-gray-500">Years hosting</p>
+          </div>
+        </div>
+      </div> */}
+    {/* </div> */}
+
+
+
+    <div className="max-w-6xl mx-auto p-8 bg-white shadow-lg rounded-xl mt-10 text-gray-800 border border-gray-200">
+      <h2 className="text-4xl font-extrabold mb-6 text-center text-gray-900">
+        User Account
+      </h2>
+
+      {user ? (
+        <div className="bg-gray-100 p-6 rounded-lg shadow-md text-center">
+          <p className="text-lg font-semibold mb-2">Name: {user.name}</p>
+          <p className="text-lg font-semibold mb-6">Email: {user.email}</p>
+          <button
+            className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg shadow-md"
+            onClick={logout}
+          >
+            Logout
+          </button>
+        </div>
+      ) : (
+        <p className="text-center text-lg">Loading...</p>
+      )}
+
+      {/* User's Created Events */}
+      <h3 className="text-2xl font-semibold mt-8 mb-4">Your Created Events</h3>
+      {userEvents.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border border-gray-300 mt-4">
+            <thead>
+              <tr className="bg-gray-200 text-gray-700">
+                <th className="border border-gray-300 p-3 text-left">Title</th>
+                <th className="border border-gray-300 p-3 text-left">Date</th>
+                <th className="border border-gray-300 p-3 text-left">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {userEvents.map((event) => (
+                <tr
+                  key={event._id}
+                  className="bg-white border border-gray-300 hover:bg-gray-100 transition"
+                >
+                  <td className="p-3">{event.title}</td>
+                  <td className="p-3">
+                    {new Date(event.eventDate).toLocaleDateString()}
+                  </td>
+                  <td className="p-3 flex gap-2">
+                    <button
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
+                      onClick={() => setEditEvent(event)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
+                      onClick={() => handleDeleteEvent(event._id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-gray-600">No events created yet.</p>
+      )}
+
+      {/* Contact Messages Section (Collapsible) */}
+      <div className="mt-8">
+        <button
+          onClick={() => setShowContacts(!showContacts)}
+          className="bg-gray-800 text-white px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-between w-full"
+        >
+          {showContacts ? "Hide Contact Messages" : "Show Contact Messages"}
+        </button>
+
+        {showContacts && (
+          <div className="mt-4 overflow-x-auto">
+            {contacts.length > 0 ? (
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-200 text-gray-700">
+                    <th className="border border-gray-300 p-3 text-left">
+                      Name
+                    </th>
+                    <th className="border border-gray-300 p-3 text-left">
+                      Email
+                    </th>
+                    <th className="border border-gray-300 p-3 text-left">
+                      Message
+                    </th>
+                    <th className="border border-gray-300 p-3 text-left">
+                      Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contacts.map((contact) => (
+                    <tr
+                      key={contact._id}
+                      className="bg-white border border-gray-300 hover:bg-gray-100 transition"
+                    >
+                      <td className="p-3">{contact.name}</td>
+                      <td className="p-3">{contact.email}</td>
+                      <td className="p-3">{contact.message}</td>
+                      <td className="p-3">
+                        {new Date(contact.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-gray-600">No contact messages found.</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div></>
+  );
+};
+
+export default UserAccount;

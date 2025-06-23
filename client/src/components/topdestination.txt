@@ -1,0 +1,67 @@
+import React from "react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Autoplay, Pagination, EffectCoverflow } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
+import "swiper/css/autoplay";
+import "swiper/css/effect-coverflow";
+
+const destinations = [
+  { name: "Surat", image: "https://i.pinimg.com/550x/1e/e3/0a/1ee30a5f2f47ddfb14e303bb55ef966b.jpg" },
+  { name: "Delhi", image: "https://media.istockphoto.com/id/898467608/photo/the-india-gate-in-delhi.jpg?s=612x612&w=0&k=20&c=gXUaUcAJf7TD8VZ1UvBfNGU0SNNzqg-xuIx_eXgL1OM=" },
+  { name: "Mumbai", image: "https://www.planetware.com/wpimages/2019/11/india-best-places-to-visit-mumbai.jpg" },
+  { name: "Jaipur", image: "https://fearlessfemaletravels.com/wp-content/uploads/2022/11/places-to-visit-in-india-jaipur-1024x768.jpg" },
+  { name: "Udaipur", image: "https://www.theleela.com/prod/content/assets/styles/tl_1920_735/public/aio-banner/dekstop/The-Leela-Palace%20-Udaipur_1.jpg.webp" },
+];
+
+const CitySlider = () => {
+  return (
+    <div className="max-w-7xl mx-auto py-12 px-5">
+      <h2 className="text-4xl font-bold text-center text-gray-800 mb-10">
+        ✨ Explore Beautiful Cities ✨
+      </h2>
+      <Swiper
+        modules={[Autoplay, Pagination, EffectCoverflow]}
+        spaceBetween={20}
+        slidesPerView={3}
+        loop={true}
+        autoplay={{ delay: 2500, disableOnInteraction: false }}
+        pagination={{ clickable: true }}
+        effect="coverflow"
+        centeredSlides={true}
+        coverflowEffect={{
+          rotate: 50,
+          stretch: 0,
+          depth: 100,
+          modifier: 1,
+          slideShadows: true,
+        }}
+        breakpoints={{
+          320: { slidesPerView: 1 },
+          768: { slidesPerView: 2 },
+          1024: { slidesPerView: 3 },
+        }}
+        className="relative"
+      >
+        {destinations.map((dest, index) => (
+          <SwiperSlide key={index}>
+            <div className="relative rounded-3xl overflow-hidden shadow-lg transform transition-all duration-500 hover:scale-105">
+              <img
+                src={dest.image}
+                alt={dest.name}
+                className="w-full h-80 object-cover brightness-75 transition-all duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity duration-500">
+                <h3 className="text-white text-4xl font-bold uppercase tracking-wider">
+                  {dest.name}
+                </h3>
+              </div>
+            </div>
+          </SwiperSlide>
+        ))}
+      </Swiper>
+    </div>
+  );
+};
+
+export default CitySlider;

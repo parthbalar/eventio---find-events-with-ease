@@ -1,0 +1,307 @@
+import { useState, useEffect, useContext } from "react";
+import axios from "axios";
+import { Link } from "react-router-dom";
+import { UserContext } from "../UserContext";
+import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
+import { IoMdArrowBack } from "react-icons/io";
+import DropdownComponent from "../components/DropdownComponent";
+
+export default function AddEvent() {
+  const { user } = useContext(UserContext);
+  const navigate = useNavigate();
+  const userEmail = localStorage.getItem("userEmail");
+
+
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    organizedBy: "",
+    eventDate: "",
+    eventTime: "",
+    address: "",
+    location: "",
+    ticketPrice: "",
+    category: "",
+    image: null,
+    organizerEmail: userEmail,
+  });
+
+  const [imagePreview, setImagePreview] = useState(null);
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    const storedEmail = localStorage.getItem("userEmail") || "";
+    setFormData((prev) => ({ ...prev, organizerEmail: storedEmail }));
+  }, []);
+  
+  useEffect(() => {
+    if (!user) navigate("/login");
+  }, [user, navigate]);
+
+  const handleChange = (e) => {
+    const { name, value, files } = e.target;
+    if (files && files.length > 0) {
+      const file = files[0];
+      setFormData((prev) => ({ ...prev, image: file }));
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+    // Clear the error for the field being edited
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+
+    // Prevent selecting past dates
+    if (name === "eventDate") {
+      const selectedDate = new Date(value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate < today) {
+        setErrors((prev) => ({ ...prev, eventDate: "Event date cannot be in the past." }));
+      }
+    }
+  };
+
+  const validateForm = () => {
+    let errors = {};
+    const now = new Date(); // Get the current date and time
+    const selectedDate = new Date(formData.eventDate);
+    const today = new Date(); // Separate today's date for comparison
+    today.setHours(0, 0, 0, 0); // Reset time to midnight for correct date comparison
+    const todayISO = new Date().toISOString().split("T")[0];
+
+    if (!formData.title) errors.title = "Title is required.";
+    if (!formData.description) errors.description = "Description is required.";
+    if (!formData.organizedBy) errors.organizedBy = "Organizer is required.";
+    if (!formData.eventTime) errors.eventTime = "Event time is required.";
+    if (!formData.address) errors.address = "Address is required.";
+    if (!formData.location) errors.location = "City is required.";
+    if (!formData.category) errors.category = "Category is required.";
+
+    if (selectedDate < today) {
+      setFormData((prev) => ({ ...prev, eventDate: todayISO }));
+    }
+
+    if (formData.eventDate === todayISO) {
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const [eventHour, eventMinute] = formData.eventTime.split(":").map(Number);
+
+      if (eventHour < currentHour || (eventHour === currentHour && eventMinute < currentMinute)) {
+      errors.eventTime = "Event time must be in the future.";
+      }
+    }
+
+    if (!formData.eventTime) {
+      errors.eventTime = "Event time is required.";
+    } else if (formData.eventDate === now.toISOString().split("T")[0]) {
+      const [hours, minutes] = formData.eventTime.split(":").map(Number);
+      const selectedTime = new Date();
+      selectedTime.setHours(hours, minutes, 0, 0);
+
+      if (selectedTime < now) {
+      errors.eventTime = "Event time must be after the current time.";
+      }
+    }
+
+    if (
+      !formData.ticketPrice ||
+      isNaN(formData.ticketPrice) ||
+      formData.ticketPrice < 0
+    ) {
+      errors.ticketPrice = "Valid ticket price is required.";
+    }
+    if (!formData.image) errors.image = "Event image is required.";
+
+    setErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    const formDataObj = new FormData();
+    Object.keys(formData).forEach((key) => {
+      formDataObj.append(key, formData[key]);
+    });
+
+    try {
+      await axios.post("http://localhost:4000/api/events", formDataObj, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      Swal.fire({
+        title: "Success!",
+        text: "Event created successfully!",
+        icon: "success",
+        timer: 3000,
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+      });
+
+      navigate("/");
+    } catch (error) {
+      console.error("Error posting event:", error);
+      Swal.fire({
+        title: "Error!",
+        text:
+          error.response?.data?.error ||
+          "Failed to create event. Please try again.",
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+    }
+  };
+
+  const today = new Date().toISOString().split("T")[0];
+  const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div className="flex justify-center items-center min-h-screen bg-gray-100 p-6">
+      <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl border border-gray-300">
+        {/* Back Button */}
+        <div className="flex justify-between items-center mb-8">
+          <Link to="/">
+            <button className="inline-flex gap-2 px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-300">
+              <IoMdArrowBack className="w-6 h-6" /> Back
+            </button>
+          </Link>
+        </div>
+
+        <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+          Create a New Event
+        </h1>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+            <input
+              type="text"
+              name="title"
+              placeholder="Event Title"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.title}
+              onChange={handleChange}
+            />
+            {errors.title && <p className="text-red-500 text-sm">{errors.title}</p>}
+
+            <textarea
+              name="description"
+              placeholder="Event Description"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.description}
+              onChange={handleChange}
+              rows="4"
+            ></textarea>
+            {errors.description && <p className="text-red-500 text-sm">{errors.description}</p>}
+
+            <input
+              type="text"
+              name="organizedBy"
+              placeholder="Organized By"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.organizedBy}
+              onChange={handleChange}
+            />
+            {errors.organizedBy && <p className="text-red-500 text-sm">{errors.organizedBy}</p>}
+
+            <input
+              type="date"
+              name="eventDate"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.eventDate}
+              onChange={handleChange}
+              min={today}
+            />
+            {errors.eventDate && <p className="text-red-500 text-sm">{errors.eventDate}</p>}
+
+            <input
+              type="time"
+              name="eventTime"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.eventTime}
+              onChange={handleChange}
+              min={formData.eventDate === today ? currentTime : undefined}
+            />
+            {errors.eventTime && <p className="text-red-500 text-sm">{errors.eventTime}</p>}
+
+            <textarea
+              name="address"
+              placeholder="Event Address"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.address}
+              onChange={handleChange}
+              rows="4"
+            ></textarea>
+            {errors.address && <p className="text-red-500 text-sm">{errors.address}</p>}
+
+            <div className="flex gap-4">
+              <DropdownComponent formData={formData} handleChange={handleChange} errors={errors} />
+              
+              <select
+                name="category"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.category}
+                onChange={handleChange}
+              >
+                <option value="">Select Category</option>
+                <option value="Circus">Circus</option>
+                <option value="Performing & Visual Arts">Performing & Visual Arts</option>
+                <option value="Comedy">Comedy</option>
+                <option value="Competition">Competition</option>
+                <option value="Technology">Technology</option>
+                <option value="Music">Music</option>
+                <option value="Education">Education</option>
+                <option value="Poetry">Poetry</option>
+                <option value="Kids">Kids</option>
+                <option value="Sports & Fitness">Sports & Fitness</option>
+                <option value="Festivals & Celebrations">Festivals & Celebrations</option>
+                <option value="Tech & Innovation">Tech & Innovation</option>
+
+              </select>
+              {errors.category && <p className="text-red-500 text-sm">{errors.category}</p>}
+            </div>
+
+            <input
+              type="number"
+              name="ticketPrice"
+              placeholder="Ticket Price"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={formData.ticketPrice}
+              onChange={handleChange}
+            />
+            {errors.ticketPrice && <p className="text-red-500 text-sm">{errors.ticketPrice}</p>}
+
+            <input
+              type="file"
+              name="image"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={handleChange}
+              accept="image/*"
+            />
+            {errors.image && <p className="text-red-500 text-sm">{errors.image}</p>}
+
+            {imagePreview && (
+              <div className="mt-2 w-full flex justify-center">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="max-w-full h-auto max-h-96 object-contain rounded-lg shadow"
+                />
+              </div>
+            )}
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-3 rounded-lg shadow-md hover:bg-blue-700 text-lg font-bold transition-all"
+          >
+            Submit Event
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}

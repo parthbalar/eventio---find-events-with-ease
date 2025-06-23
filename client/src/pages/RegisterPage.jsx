@@ -1,0 +1,222 @@
+import { Link, Navigate } from "react-router-dom";
+import { useContext, useState } from "react";
+import axios from "axios";
+import { motion } from "framer-motion";
+import Swal from 'sweetalert2';
+import GoogleLoginButton from '../components/GoogleLoginButton';
+import { UserContext } from "../UserContext";
+
+export default function RegisterPage() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [redirect, setRedirect] = useState('');
+  const [errors, setErrors] = useState({});
+  const { setUser } = useContext(UserContext);
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Name validation
+    if (!name.trim()) {
+      newErrors.name = 'Name is required';
+    } else if (name.length < 3) {
+      newErrors.name = 'Name must be at least 3 characters';
+    }
+
+    // Email validation
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Email address is invalid';
+    }
+
+    // Password validation
+    if (!password.trim()) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    } else if (!/(?=.*\d)(?=.*[a-z])(?=.*[A-Z])/.test(password)) {
+      newErrors.password = 'Password must contain at least one number, one lowercase and one uppercase letter';
+    }
+
+    // Confirm Password validation
+    if (!confirmPassword.trim()) {
+      newErrors.confirmPassword = 'Confirm Password is required';
+    } else if (confirmPassword !== password) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  async function registerUser(ev) {
+    ev.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      await axios.post('/register', {
+        name,
+        email,
+        password,
+      });
+      Swal.fire({
+        title: 'Success!',
+        text: 'Registration Successful',
+        icon: 'success',
+        confirmButtonText: 'OK',
+        timer: 3000,
+        timerProgressBar: true,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false
+      });
+      setRedirect(true);
+    } catch (e) {
+      Swal.fire({
+        title: 'Error!',
+        text: 'Registration Failed',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        timer: 3000,
+        timerProgressBar: true,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false
+      });
+    }
+  }
+
+  if (redirect) {
+    return <Navigate to={'/login'} />;
+  }
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 50 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      transition={{ duration: 0.5 }}
+      className="flex w-full h-full lg:-ml-24 px-10 py-10 justify-between place-items-center mt-12"
+    >
+      {/* Left Side - Image & Welcome Text */}
+      <motion.div 
+        className="hidden lg:flex flex-col right-box"
+        initial={{ opacity: 0, x: -50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8 }}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="text-3xl font-black">Welcome to</div>
+          <div>
+            <img src="../src/assets/logo.png" alt="" className="w-48"/>
+          </div>  
+        </div>
+        <motion.div 
+          className="ml-48 w-80 mt-6"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+        >
+          <img src="../src/assets/signuppic.svg" alt="" className='w-full'/>
+        </motion.div>   
+      </motion.div>
+
+      {/* Right Side - Form */}
+      <motion.div 
+        className="bg-white w-full sm:w-full md:w-1/2 lg:w-1/3 px-7 py-7 rounded-xl justify-center align-middle"
+        initial={{ opacity: 0, x: 50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8 }}
+      >
+        <form className="flex flex-col w-auto items-center" onSubmit={registerUser}>
+          <motion.h1 
+            className='px-3 font-extrabold mb-5 text-primarydark text-2xl'
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            Sign Up
+          </motion.h1>
+
+          {/* Input Fields */}
+          {[ 
+            { placeholder: "Name", type: "text", value: name, setValue: setName, error: errors.name },
+            { placeholder: "Email", type: "email", value: email, setValue: setEmail, error: errors.email },
+            { placeholder: "Password", type: "password", value: password, setValue: setPassword, error: errors.password },
+            { placeholder: "Confirm Password", type: "password", value: confirmPassword, setValue: setConfirmPassword, error: errors.confirmPassword }
+          ].map((field, index) => (
+            <motion.div 
+              key={index} 
+              className="input"
+              initial={{ x: -30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <input 
+                type={field.type}  
+                placeholder={field.placeholder} 
+                className="input-et" 
+                value={field.value} 
+                onChange={ev => field.setValue(ev.target.value)}
+              />
+              {field.error && <div className="text-red-500 text-sm">{field.error}</div>}
+            </motion.div>
+          ))}
+
+          {/* Submit Button */}
+          <motion.div 
+            className="w-full py-4"
+            whileTap={{ scale: 0.95 }}
+          >
+            <button type="submit" className="primary w-full"> Create Account </button>
+          </motion.div>
+
+          {/* google login component */}
+          <GoogleLoginButton />
+
+          {/* Navigation Links */}
+          <div className="container2">
+            <motion.div 
+              className="w-full h-full p-1"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Link to={'/login'}>
+                <button className="text-black cursor-pointer rounded w-full h-full font-bold"> LogIn</button>
+              </Link>
+            </motion.div>
+            <motion.div 
+              className="w-full h-full p-1"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Link to={'/register'}>
+                <button className="text-white cursor-pointer rounded w-full h-full bg-primary font-bold"> SignUp</button>
+              </Link>
+            </motion.div>
+          </div>
+
+          {/* Back Button */}
+          <motion.div 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link to={'/'}>
+              <button className="secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M11.03 3.97a.75.75 0 010 1.06l-6.22 6.22H21a.75.75 0 010 1.5H4.81l6.22 6.22a.75.75 0 11-1.06 1.06l-7.5-7.5a.75.75 0 010-1.06l7.5-7.5a.75.75 0 011.06 0z" clipRule="evenodd" />
+                </svg> 
+                Back 
+              </button>
+            </Link>
+          </motion.div>
+        </form>
+      </motion.div>
+    </motion.div>
+  )
+}

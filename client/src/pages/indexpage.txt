@@ -1,0 +1,182 @@
+import axios from "axios";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { BsArrowRightShort, BsArrowDownShort } from "react-icons/bs";
+import { motion } from "framer-motion";
+import ImageSlider from "./ImageSlider";
+import Categories from "../components/Categories";
+import Topdesti from "../components/Topdesti";
+import EventCard from "../components/EventCard";
+
+
+// { searchQuery, events, loading }
+export default function IndexPage() {
+  
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [visibleEvents, setVisibleEvents] = useState(4); // Default 8, max 12
+
+
+  // ✅ Move `isUpcoming` above `useEffect`
+  const isUpcoming = (eventDate, eventTime) => {
+    return new Date(`${eventDate} ${eventTime}`) > new Date();
+  };
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await axios.get("http://localhost:4000/api/events");
+        const upcomingEvents = response.data.filter((event) =>
+          isUpcoming(event.eventDate, event.eventTime)
+        );
+        setEvents(upcomingEvents);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
+  // ✅ Auto-remove past events every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setEvents((prevEvents) =>
+        prevEvents.filter((event) => isUpcoming(event.eventDate, event.eventTime))
+      );
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ✅ Filtered upcoming events (used in UI)
+  const filteredEvents = events.filter((event) =>
+    isUpcoming(event.eventDate, event.eventTime)
+  );
+
+
+  useEffect(() => {
+    console.log("Filtered Events:", filteredEvents.length);
+  }, [filteredEvents]);
+  
+  
+
+  // ✅ Load more events, max 12
+  const loadMoreEvents = () => {
+    setVisibleEvents((prev) => {
+      const newVisible = prev + 4;
+      return Math.min(newVisible, filteredEvents.length); // Ensure it doesn't exceed available events
+    });
+  };
+  
+
+  // Check if an event is happening today AND is still upcoming
+  const isTodayAndUpcoming = (eventDate, eventTime) => {
+    const eventDateTime = new Date(`${eventDate} ${eventTime}`);
+    const now = new Date();
+    return (
+      eventDateTime.getDate() === now.getDate() &&
+      eventDateTime.getMonth() === now.getMonth() &&
+      eventDateTime.getFullYear() === now.getFullYear() &&
+      eventDateTime > now
+    );
+  };
+
+  return (
+    <>
+      <ImageSlider />
+      <Categories />
+
+      {/* Explore All Events Section */}
+      <div className="mx-10 my-10 flex flex-col items-center text-center bg-blue-100/50 p-8 rounded-xl shadow-md">
+        <h2 className="text-4xl font-bold text-gray-900 mb-4"> Explore Exciting Events!</h2>
+        <p className="text-gray-600 text-lg mb-6 max-w-xl">
+          Discover amazing events happening near you. Don't miss out—book your tickets today!
+        </p>
+
+        {/* "View All Events" Button */}
+        <Link to="/events">
+          <motion.button
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 text-lg rounded-full shadow-lg transition-all hover:shadow-xl hover:from-blue-700 hover:to-purple-700 active:scale-95 flex items-center gap-3"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            View All Events <BsArrowRightShort className="w-6 h-6" />
+          </motion.button>
+        </Link>
+      </div>
+
+      {/* Today's Events */}
+      <div className="mx-10 my-8">
+        <h2 className="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-gray-300 pb-2">
+          🚀 Today's Events
+        </h2>
+        {loading ? (
+          <p className="text-center text-gray-600">Loading events...</p>
+        ) : events.some((event) => isTodayAndUpcoming(event.eventDate, event.eventTime)) ? (
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {events
+              .filter((event) => isTodayAndUpcoming(event.eventDate, event.eventTime))
+              .map((event, index) => (
+                <EventCard key={event._id} event={event} index={index} />
+              ))}
+          </div>
+        ) : (
+          <p className="text-center text-gray-600">No events scheduled for today.</p>
+        )}
+      </div>
+
+      {/* // Upcoming Events */}
+      <div className="mx-10 my-5">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6 border-l-4 border-blue-600 pl-4">
+            Upcoming Events
+          </h2>
+
+          {loading ? (
+            <p className="text-center text-gray-600">Loading events...</p>
+          ) : (
+            <>
+              {filteredEvents.length === 0 ? (
+                <p className="text-center text-gray-600">There are no upcoming events.</p>
+              ) : (
+                <>
+                  <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                    {filteredEvents.slice(0, visibleEvents).map((event, index) => (
+                      <EventCard key={event._id} event={event} index={index} />
+                    ))}
+                  </div>
+
+                  <div className="flex justify-center mt-6 gap-4">
+                    {/* View More Button (Max 12 Events) */}
+                    {/* {visibleEvents < filteredEvents.length && ( */}
+                    {filteredEvents.length > visibleEvents && visibleEvents < 12 && (
+
+                      <motion.button
+                        onClick={loadMoreEvents}
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-3 rounded-lg shadow-lg transition-all hover:shadow-xl hover:from-blue-700 hover:to-purple-700 active:scale-95 flex items-center gap-2"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        View More <BsArrowDownShort className="w-6 h-6" />
+                      </motion.button>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+
+
+      {/* Top Destinations */}
+      <div className="mx-10 my-5">
+        <h2 className="text-3xl font-bold text-gray-900 mb-6 border-l-4 border-blue-600 pl-4">
+          🌍 Top Destinations in India
+        </h2>
+        <Topdesti />
+      </div>
+    </>
+  );
+}
